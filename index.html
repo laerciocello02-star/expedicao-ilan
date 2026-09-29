@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#087a4a">
-<title>Expedição Segura ILAN — v44</title>
+<title>Expedição Segura ILAN — v45</title>
 <style>
 :root{--g:#087a4a;--g2:#075b39;--bg:#f5f8f6;--ink:#17231e;--mut:#68756e;--line:#dfe8e2;--red:#b52c34;--white:#fff}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink)}button,input,select{font:inherit}button{cursor:pointer}.hidden{display:none!important}
@@ -69,7 +69,7 @@
 <div id="flash" class="flash"></div>
 <section id="login" class="login">
   <div class="loginCard">
-    <div class="brand"><div class="mark">IL</div><div><b>ILAN</b><small>Expedição Segura • v44</small></div></div>
+    <div class="brand"><div class="mark">IL</div><div><b>ILAN</b><small>Expedição Segura • v45</small></div></div>
     <h1>Acesso ao sistema</h1>
     <div class="sub">FIFO, liberação para conferência e leitura de volumes.</div>
     <form id="loginForm">
@@ -94,7 +94,7 @@
       <button data-v="cad">▧ &nbsp; Cadastros e Etiquetas</button>
       <button data-v="cfg">⚙ &nbsp; Configurações</button>
     </nav>
-    <div class="foot"><b>Versão 44 · Diagnóstico de Câmera</b>Backup/restauração, reset seguro, cadastros, etiquetas e liberação dinâmica.</div>
+    <div class="foot"><b>Versão 45 · Leitura Poka-Yoke Corrigida</b>Backup/restauração, reset seguro, cadastros, etiquetas e liberação dinâmica.</div>
   </aside>
   <div class="work">
     <header class="top">
@@ -629,6 +629,10 @@ SEM_VOLUMES:"Nenhum volume foi informado para liberação.",
 CODIGO_FORA_DA_FILA:"Código não pertence a esta fila.",
 FORA_DA_SEQUENCIA:"Código fora da sequência indicada.",
 CODIGO_JA_CONFERIDO:"Este volume já foi conferido.",
+LEITURA_REJEITADA:"Leitura rejeitada pelo Poka-Yoke.",
+CODIGO_VAZIO:"Nenhum código foi informado.",
+FILA_NAO_ENCONTRADA:"Fila de conferência não encontrada.",
+LEITURA_CONCORRENTE:"Esta leitura já foi processada em outro posto. Atualize a fila.",
 FILA_FECHADA:"A fila já foi encerrada.",
 NAO_AUTENTICADO:"Sessão expirada.",SEM_CONEXAO:"Sem conexão com o servidor. Verifique a internet.",
 VOLUME_NAO_ENCONTRADO:"Caixa/volume não encontrado.",
@@ -766,11 +770,30 @@ async function api(body){
   }catch(e){
     throw new Error("SEM_CONEXAO");
   }
+
   const raw=await r.text();
   let j={};
-  try{j=raw?JSON.parse(raw):{}}catch{j={erro:raw||("HTTP "+r.status)}}
-  if(!r.ok||j.ok===false)throw new Error(j.erro||j.detalhe||j.mensagem||j.message||("HTTP "+r.status));
-  return j
+  try{
+    j=raw?JSON.parse(raw):{};
+  }catch{
+    throw new Error(raw||("RESPOSTA_INVALIDA_HTTP_"+r.status));
+  }
+
+  // Em "scan", uma rejeição de Poka-Yoke é uma resposta operacional válida.
+  // O próprio fluxo de conferência deve interpretar j.motivo e mostrar a razão real.
+  if(body?.action==="scan" && r.ok) return j;
+
+  if(!r.ok || j.ok===false){
+    throw new Error(
+      j.erro ||
+      j.motivo ||
+      j.detalhe ||
+      j.mensagem ||
+      j.message ||
+      ("HTTP_"+r.status)
+    );
+  }
+  return j;
 }
 async function erpApi(body){
   const ss=(await sb.auth.getSession()).data.session;
@@ -1250,7 +1273,7 @@ async function loadStockMap(){
 
 function view(v){S.view=v;["pedidos","conf","aloc","erp","stock","cad","cfg"].forEach(x=>$("#v-"+x).classList.add("hidden"));$("#v-"+v).classList.remove("hidden");$$("[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===v));$("#title").textContent={pedidos:"Liberação FIFO",conf:"Conferência",aloc:"Saída / Alocação",erp:"Entrada de Dados / ERP",stock:"Estoque / FIFO",cad:"Cadastros e Etiquetas",cfg:"Configurações"}[v];if(v==="conf")setTimeout(focus,60);if(v==="aloc"){setTimeout(()=>$("#prodBox").focus(),60);loadStockMap()}if(v==="erp"){loadErp().catch(e=>{const m=$("#erpImportMsg");if(m){m.textContent=reason(e.message);m.className="msg bad"}})}if(v==="cfg")diagnoseCamera(false);if(v==="stock")renderStock()}
 
-async function scan(){const inp=$("#scanInput"),code=inp.value.trim();if(!code){focus();return}const now=Date.now(),deb=Number((S.cfg.signal_config||{}).debounce_ms||900);if(S.scanLock||(code===S.lastScanCode&&now-S.lastScanAt<deb)){await pokayokeFeedback("warning",{title:"⚠ LEITURA REPETIDA",message:"Código ignorado para evitar duplicidade.",codigo_lido:code,instruction:"AGUARDE A LIBERAÇÃO DA PRÓXIMA LEITURA."},{context:"CONFERENCIA"});inp.value="";setTimeout(focus,80);return}if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila.","bad");await pokayokeFeedback("error",{title:"✕ FILA NÃO SELECIONADA",message:"Selecione a fila antes de conferir.",codigo_lido:code,instruction:"SELECIONE A FILA CORRETA E LEIA NOVAMENTE."},{context:"CONFERENCIA"});return}S.scanLock=true;S.lastScanCode=code;S.lastScanAt=now;$("#scanBtn").disabled=true;setMsg("Validando "+code+"…","");const expected=expectedSnapshot(),slow=setTimeout(()=>pokayokeFeedback("validating",{message:"Validando leitura..."},{holdMs:1200}),300);try{const x=await api({action:"scan",fila_id:S.queue.fila.id,codigo:code});clearTimeout(slow);if(x.ok&&(x.resultado==="LIBERADO"||x.resultado==="CONCLUIDA")){const exp=expected||{},loc=exp.endereco||{};await pokayokeFeedback("success",{title:x.resultado==="CONCLUIDA"?"✓ FILA CONCLUÍDA":"✓ PRODUTO CORRETO",message:x.resultado==="CONCLUIDA"?"Conferência concluída com sucesso.":(x.produto||code),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:x.produto||exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:x.sequencia||exp.sequencia,instruction:x.resultado==="CONCLUIDA"?"FILA PRONTA PARA A PRÓXIMA ETAPA.":"OK — PROSSIGA PARA O PRÓXIMO ITEM."},{context:"CONFERENCIA"});setMsg(x.resultado==="CONCLUIDA"?"Fila concluída com sucesso.":"✓ CORRETO — "+(x.produto||code),"good");if(x.state&&x.state.ok)S.queue=x.state;if(x.aguardando_complemento)setMsg("Itens liberados conferidos. Aguardando complemento do ADM.","good");await loadAll()}else throw new Error(x.motivo||"REJEITADO")}catch(er){clearTimeout(slow);const exp=expected||{},loc=exp.endereco||{},lvl=classifyPkyError(er.message);await pokayokeFeedback(lvl,{title:lvl==="warning"?"⚠ ATENÇÃO":lvl==="critical"?"⛔ OPERAÇÃO BLOQUEADA":"✕ CAIXA INCORRETA",message:reason(er.message),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco_esperado:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:exp.sequencia,instruction:lvl==="warning"?"CONFIRA A SEQUÊNCIA/FIFO ANTES DE PROSSEGUIR.":"NÃO RETIRAR ESTA CAIXA. PROCURE O ITEM ESPERADO NO LOCAL INDICADO."},{context:"CONFERENCIA",block:lvl==="critical"});setMsg("✕ "+reason(er.message),"bad")}finally{inp.value="";$("#scanBtn").disabled=false;S.scanLock=false;setTimeout(focus,80)}}
+async function scan(){const inp=$("#scanInput"),code=inp.value.trim();if(!code){focus();return}const now=Date.now(),deb=Number((S.cfg.signal_config||{}).debounce_ms||900);if(S.scanLock||(code===S.lastScanCode&&now-S.lastScanAt<deb)){await pokayokeFeedback("warning",{title:"⚠ LEITURA REPETIDA",message:"Código ignorado para evitar duplicidade.",codigo_lido:code,instruction:"AGUARDE A LIBERAÇÃO DA PRÓXIMA LEITURA."},{context:"CONFERENCIA"});inp.value="";setTimeout(focus,80);return}if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila.","bad");await pokayokeFeedback("error",{title:"✕ FILA NÃO SELECIONADA",message:"Selecione a fila antes de conferir.",codigo_lido:code,instruction:"SELECIONE A FILA CORRETA E LEIA NOVAMENTE."},{context:"CONFERENCIA"});return}S.scanLock=true;S.lastScanCode=code;S.lastScanAt=now;$("#scanBtn").disabled=true;setMsg("Validando "+code+"…","");const expected=expectedSnapshot(),slow=setTimeout(()=>pokayokeFeedback("validating",{message:"Validando leitura..."},{holdMs:1200}),300);try{const x=await api({action:"scan",fila_id:S.queue.fila.id,codigo:code});clearTimeout(slow);if(x.ok&&(x.resultado==="LIBERADO"||x.resultado==="CONCLUIDA")){const exp=expected||{},loc=exp.endereco||{};await pokayokeFeedback("success",{title:x.resultado==="CONCLUIDA"?"✓ FILA CONCLUÍDA":"✓ PRODUTO CORRETO",message:x.resultado==="CONCLUIDA"?"Conferência concluída com sucesso.":(x.produto||code),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:x.produto||exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:x.sequencia||exp.sequencia,instruction:x.resultado==="CONCLUIDA"?"FILA PRONTA PARA A PRÓXIMA ETAPA.":"OK — PROSSIGA PARA O PRÓXIMO ITEM."},{context:"CONFERENCIA"});setMsg(x.resultado==="CONCLUIDA"?"Fila concluída com sucesso.":"✓ CORRETO — "+(x.produto||code),"good");if(x.state&&x.state.ok)S.queue=x.state;if(x.aguardando_complemento)setMsg("Itens liberados conferidos. Aguardando complemento do ADM.","good");await loadAll()}else throw new Error(x.motivo||x.erro||x.mensagem||"LEITURA_REJEITADA")}catch(er){clearTimeout(slow);const exp=expected||{},loc=exp.endereco||{},lvl=classifyPkyError(er.message);await pokayokeFeedback(lvl,{title:lvl==="warning"?"⚠ ATENÇÃO":lvl==="critical"?"⛔ OPERAÇÃO BLOQUEADA":"✕ CAIXA INCORRETA",message:reason(er.message),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco_esperado:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:exp.sequencia,instruction:lvl==="warning"?"CONFIRA A SEQUÊNCIA/FIFO ANTES DE PROSSEGUIR.":"NÃO RETIRAR ESTA CAIXA. PROCURE O ITEM ESPERADO NO LOCAL INDICADO."},{context:"CONFERENCIA",block:lvl==="critical"});setMsg("✕ "+reason(er.message),"bad")}finally{inp.value="";$("#scanBtn").disabled=false;S.scanLock=false;setTimeout(focus,80)}}
 
 async function cameraPermissionState(){
   try{
