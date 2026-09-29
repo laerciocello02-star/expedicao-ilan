@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#087a4a">
-<title>Expedição Segura ILAN — v43</title>
+<title>Expedição Segura ILAN — v44</title>
 <style>
 :root{--g:#087a4a;--g2:#075b39;--bg:#f5f8f6;--ink:#17231e;--mut:#68756e;--line:#dfe8e2;--red:#b52c34;--white:#fff}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink)}button,input,select{font:inherit}button{cursor:pointer}.hidden{display:none!important}
@@ -56,13 +56,20 @@
 .cameraStatus{margin-top:10px;padding:10px;border-radius:10px;background:#f4f7f5;font-weight:800;text-align:center}
 @media(max-width:760px){#reader{min-height:340px}.modal{width:min(96vw,560px)}}
 
+
+.cameraDiag{display:grid;gap:10px;margin-top:12px}
+.cameraDiagRow{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.cameraDiagRow b{font-size:13px}.diagOk{color:#087a4a;font-weight:900}.diagWarn{color:#b06a00;font-weight:900}.diagBad{color:#b52c34;font-weight:900}
+.cameraDiagActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.cameraPermissionHelp{margin-top:10px;padding:12px;border-radius:10px;background:#fff7e6;border:1px solid #f0d49a;color:#684c00;font-size:13px}
+
 </style>
 </head>
 <body>
 <div id="flash" class="flash"></div>
 <section id="login" class="login">
   <div class="loginCard">
-    <div class="brand"><div class="mark">IL</div><div><b>ILAN</b><small>Expedição Segura • v43</small></div></div>
+    <div class="brand"><div class="mark">IL</div><div><b>ILAN</b><small>Expedição Segura • v44</small></div></div>
     <h1>Acesso ao sistema</h1>
     <div class="sub">FIFO, liberação para conferência e leitura de volumes.</div>
     <form id="loginForm">
@@ -87,7 +94,7 @@
       <button data-v="cad">▧ &nbsp; Cadastros e Etiquetas</button>
       <button data-v="cfg">⚙ &nbsp; Configurações</button>
     </nav>
-    <div class="foot"><b>Versão 43 · Câmera Mobile</b>Backup/restauração, reset seguro, cadastros, etiquetas e liberação dinâmica.</div>
+    <div class="foot"><b>Versão 44 · Diagnóstico de Câmera</b>Backup/restauração, reset seguro, cadastros, etiquetas e liberação dinâmica.</div>
   </aside>
   <div class="work">
     <header class="top">
@@ -133,7 +140,7 @@
             <h1>Saída da Produção / Alocação</h1>
             <div class="sub">Fluxo simples: Caixa → Endereço → OK. Toda movimentação fica registrada.</div>
           </div>
-          <span class="badge">RASTREABILIDADE</span>
+          <span class="badge">RASTREABILIDADE + CÂMERA</span>
         </div>
 
         <div class="grid">
@@ -537,7 +544,22 @@
             <div class="cfgActions"><button id="testOk" class="btn secondary">▶ Testar CORRETO</button><button id="testErr" class="btn danger">▶ Testar ERRO</button><button id="saveCfg" class="btn primary">Salvar configurações</button></div>
             <div id="cfgMsg" class="msg">Carregando configurações…</div>
           </div>
-          <div class="setting"><div><b>Sinalização Sonora e Visual Poka-Yoke</b><span>COR + ÍCONE + TEXTO + SOM, com vibração quando disponível.</span></div><div class="signalGrid" style="margin-top:12px"><div class="head">Nível</div><div class="head">Volume %</div><div class="head">Duração ms</div><div class="head">Repetições</div><div class="head">Piscadas</div><div class="signalRow"><div class="signalName">✓ CORRETO</div><input id="sigSuccessVol" class="input" type="number" min="0" max="200"><input id="sigSuccessDur" class="input" type="number" min="50" max="2000"><input id="sigSuccessRep" class="input" type="number" min="1" max="8"><input id="sigSuccessFlash" class="input" type="number" min="0" max="10"></div><div class="signalRow"><div class="signalName">⚠ ATENÇÃO</div><input id="sigWarningVol" class="input" type="number" min="0" max="200"><input id="sigWarningDur" class="input" type="number" min="50" max="2000"><input id="sigWarningRep" class="input" type="number" min="1" max="8"><input id="sigWarningFlash" class="input" type="number" min="0" max="10"></div><div class="signalRow"><div class="signalName">✕ INCORRETO</div><input id="sigErrorVol" class="input" type="number" min="0" max="200"><input id="sigErrorDur" class="input" type="number" min="50" max="3000"><input id="sigErrorRep" class="input" type="number" min="1" max="10"><input id="sigErrorFlash" class="input" type="number" min="0" max="20"></div><div class="signalRow"><div class="signalName">⛔ CRÍTICO</div><input id="sigCriticalVol" class="input" type="number" min="0" max="200"><input id="sigCriticalDur" class="input" type="number" min="50" max="5000"><input id="sigCriticalRep" class="input" type="number" min="1" max="12"><input id="sigCriticalFlash" class="input" type="number" min="0" max="20"></div></div><div class="formGrid" style="margin-top:12px"><div><label class="sub">Vibração</label><select id="sigVibration" class="input"><option value="true">Ativada</option><option value="false">Desativada</option></select></div><div><label class="sub">Tela inteira no erro</label><select id="sigFullscreen" class="input"><option value="true">Ativada</option><option value="false">Desativada</option></select></div><div><label class="sub">Bloqueio leitura repetida (ms)</label><input id="sigDebounce" class="input" type="number" min="200" max="5000" step="100"></div></div><div class="cfgActions"><button id="sigTestSuccess" class="btn secondary">✓ Testar correto</button><button id="sigTestWarning" class="btn secondary">⚠ Testar atenção</button><button id="sigTestError" class="btn danger">✕ Testar erro</button><button id="sigTestCritical" class="btn danger">⛔ Testar crítico</button></div></div><div class="setting" id="adminDataPanel">
+          
+<div class="setting">
+  <div><b>Diagnóstico de Câmera / Vídeo</b><span>Verifica HTTPS, suporte a vídeo, permissão da câmera e câmera traseira.</span></div>
+  <div id="cameraDiagBox" class="cameraDiag">
+    <div class="cameraDiagRow"><b>HTTPS</b><span id="diagHttps">—</span></div>
+    <div class="cameraDiagRow"><b>API de vídeo do navegador</b><span id="diagApi">—</span></div>
+    <div class="cameraDiagRow"><b>Permissão da câmera</b><span id="diagPermission">—</span></div>
+    <div class="cameraDiagRow"><b>Câmera traseira</b><span id="diagRear">—</span></div>
+  </div>
+  <div class="cameraDiagActions">
+    <button id="diagCameraBtn" class="btn secondary">📷 Testar câmera / vídeo</button>
+    <button id="diagRefreshBtn" class="btn secondary">↻ Verificar novamente</button>
+  </div>
+  <div id="diagHelp" class="cameraPermissionHelp hidden"></div>
+</div>
+<div class="setting"><div><b>Sinalização Sonora e Visual Poka-Yoke</b><span>COR + ÍCONE + TEXTO + SOM, com vibração quando disponível.</span></div><div class="signalGrid" style="margin-top:12px"><div class="head">Nível</div><div class="head">Volume %</div><div class="head">Duração ms</div><div class="head">Repetições</div><div class="head">Piscadas</div><div class="signalRow"><div class="signalName">✓ CORRETO</div><input id="sigSuccessVol" class="input" type="number" min="0" max="200"><input id="sigSuccessDur" class="input" type="number" min="50" max="2000"><input id="sigSuccessRep" class="input" type="number" min="1" max="8"><input id="sigSuccessFlash" class="input" type="number" min="0" max="10"></div><div class="signalRow"><div class="signalName">⚠ ATENÇÃO</div><input id="sigWarningVol" class="input" type="number" min="0" max="200"><input id="sigWarningDur" class="input" type="number" min="50" max="2000"><input id="sigWarningRep" class="input" type="number" min="1" max="8"><input id="sigWarningFlash" class="input" type="number" min="0" max="10"></div><div class="signalRow"><div class="signalName">✕ INCORRETO</div><input id="sigErrorVol" class="input" type="number" min="0" max="200"><input id="sigErrorDur" class="input" type="number" min="50" max="3000"><input id="sigErrorRep" class="input" type="number" min="1" max="10"><input id="sigErrorFlash" class="input" type="number" min="0" max="20"></div><div class="signalRow"><div class="signalName">⛔ CRÍTICO</div><input id="sigCriticalVol" class="input" type="number" min="0" max="200"><input id="sigCriticalDur" class="input" type="number" min="50" max="5000"><input id="sigCriticalRep" class="input" type="number" min="1" max="12"><input id="sigCriticalFlash" class="input" type="number" min="0" max="20"></div></div><div class="formGrid" style="margin-top:12px"><div><label class="sub">Vibração</label><select id="sigVibration" class="input"><option value="true">Ativada</option><option value="false">Desativada</option></select></div><div><label class="sub">Tela inteira no erro</label><select id="sigFullscreen" class="input"><option value="true">Ativada</option><option value="false">Desativada</option></select></div><div><label class="sub">Bloqueio leitura repetida (ms)</label><input id="sigDebounce" class="input" type="number" min="200" max="5000" step="100"></div></div><div class="cfgActions"><button id="sigTestSuccess" class="btn secondary">✓ Testar correto</button><button id="sigTestWarning" class="btn secondary">⚠ Testar atenção</button><button id="sigTestError" class="btn danger">✕ Testar erro</button><button id="sigTestCritical" class="btn danger">⛔ Testar crítico</button></div></div><div class="setting" id="adminDataPanel">
             <div><b>Administração da base de dados</b><span>Backup completo, restauração e limpeza segura da base HML.</span></div>
             <div id="adminDataHint" class="adminOnlyHint">Somente ADM/Administrador pode executar estas ações.</div>
             <div class="adminDataGrid">
@@ -1226,10 +1248,96 @@ async function loadStockMap(){
   }catch(e){box.innerHTML='<div class="msg bad">'+esc(reason(e.message))+'</div>'}
 }
 
-function view(v){S.view=v;["pedidos","conf","aloc","erp","stock","cad","cfg"].forEach(x=>$("#v-"+x).classList.add("hidden"));$("#v-"+v).classList.remove("hidden");$$("[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===v));$("#title").textContent={pedidos:"Liberação FIFO",conf:"Conferência",aloc:"Saída / Alocação",erp:"Entrada de Dados / ERP",stock:"Estoque / FIFO",cad:"Cadastros e Etiquetas",cfg:"Configurações"}[v];if(v==="conf")setTimeout(focus,60);if(v==="aloc"){setTimeout(()=>$("#prodBox").focus(),60);loadStockMap()}if(v==="erp"){loadErp().catch(e=>{const m=$("#erpImportMsg");if(m){m.textContent=reason(e.message);m.className="msg bad"}})}if(v==="stock")renderStock()}
+function view(v){S.view=v;["pedidos","conf","aloc","erp","stock","cad","cfg"].forEach(x=>$("#v-"+x).classList.add("hidden"));$("#v-"+v).classList.remove("hidden");$$("[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===v));$("#title").textContent={pedidos:"Liberação FIFO",conf:"Conferência",aloc:"Saída / Alocação",erp:"Entrada de Dados / ERP",stock:"Estoque / FIFO",cad:"Cadastros e Etiquetas",cfg:"Configurações"}[v];if(v==="conf")setTimeout(focus,60);if(v==="aloc"){setTimeout(()=>$("#prodBox").focus(),60);loadStockMap()}if(v==="erp"){loadErp().catch(e=>{const m=$("#erpImportMsg");if(m){m.textContent=reason(e.message);m.className="msg bad"}})}if(v==="cfg")diagnoseCamera(false);if(v==="stock")renderStock()}
 
 async function scan(){const inp=$("#scanInput"),code=inp.value.trim();if(!code){focus();return}const now=Date.now(),deb=Number((S.cfg.signal_config||{}).debounce_ms||900);if(S.scanLock||(code===S.lastScanCode&&now-S.lastScanAt<deb)){await pokayokeFeedback("warning",{title:"⚠ LEITURA REPETIDA",message:"Código ignorado para evitar duplicidade.",codigo_lido:code,instruction:"AGUARDE A LIBERAÇÃO DA PRÓXIMA LEITURA."},{context:"CONFERENCIA"});inp.value="";setTimeout(focus,80);return}if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila.","bad");await pokayokeFeedback("error",{title:"✕ FILA NÃO SELECIONADA",message:"Selecione a fila antes de conferir.",codigo_lido:code,instruction:"SELECIONE A FILA CORRETA E LEIA NOVAMENTE."},{context:"CONFERENCIA"});return}S.scanLock=true;S.lastScanCode=code;S.lastScanAt=now;$("#scanBtn").disabled=true;setMsg("Validando "+code+"…","");const expected=expectedSnapshot(),slow=setTimeout(()=>pokayokeFeedback("validating",{message:"Validando leitura..."},{holdMs:1200}),300);try{const x=await api({action:"scan",fila_id:S.queue.fila.id,codigo:code});clearTimeout(slow);if(x.ok&&(x.resultado==="LIBERADO"||x.resultado==="CONCLUIDA")){const exp=expected||{},loc=exp.endereco||{};await pokayokeFeedback("success",{title:x.resultado==="CONCLUIDA"?"✓ FILA CONCLUÍDA":"✓ PRODUTO CORRETO",message:x.resultado==="CONCLUIDA"?"Conferência concluída com sucesso.":(x.produto||code),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:x.produto||exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:x.sequencia||exp.sequencia,instruction:x.resultado==="CONCLUIDA"?"FILA PRONTA PARA A PRÓXIMA ETAPA.":"OK — PROSSIGA PARA O PRÓXIMO ITEM."},{context:"CONFERENCIA"});setMsg(x.resultado==="CONCLUIDA"?"Fila concluída com sucesso.":"✓ CORRETO — "+(x.produto||code),"good");if(x.state&&x.state.ok)S.queue=x.state;if(x.aguardando_complemento)setMsg("Itens liberados conferidos. Aguardando complemento do ADM.","good");await loadAll()}else throw new Error(x.motivo||"REJEITADO")}catch(er){clearTimeout(slow);const exp=expected||{},loc=exp.endereco||{},lvl=classifyPkyError(er.message);await pokayokeFeedback(lvl,{title:lvl==="warning"?"⚠ ATENÇÃO":lvl==="critical"?"⛔ OPERAÇÃO BLOQUEADA":"✕ CAIXA INCORRETA",message:reason(er.message),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco_esperado:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:exp.sequencia,instruction:lvl==="warning"?"CONFIRA A SEQUÊNCIA/FIFO ANTES DE PROSSEGUIR.":"NÃO RETIRAR ESTA CAIXA. PROCURE O ITEM ESPERADO NO LOCAL INDICADO."},{context:"CONFERENCIA",block:lvl==="critical"});setMsg("✕ "+reason(er.message),"bad")}finally{inp.value="";$("#scanBtn").disabled=false;S.scanLock=false;setTimeout(focus,80)}}
+
+async function cameraPermissionState(){
+  try{
+    if(!navigator.permissions||!navigator.permissions.query)return "indisponivel";
+    const p=await navigator.permissions.query({name:"camera"});
+    return p.state||"prompt";
+  }catch{return "indisponivel"}
+}
+async function listVideoDevices(){
+  try{
+    const ds=await navigator.mediaDevices.enumerateDevices();
+    return ds.filter(d=>d.kind==="videoinput");
+  }catch{return []}
+}
+function rearCameraCandidate(devices){
+  return devices.find(d=>/back|rear|environment|traseira/i.test(d.label||""))||devices[devices.length-1]||null;
+}
+function setDiag(id,status,text){
+  const el=$("#"+id);if(!el)return;
+  el.textContent=text;
+  el.className=status==="ok"?"diagOk":status==="warn"?"diagWarn":"diagBad";
+}
+async function diagnoseCamera(requestPermission=false){
+  const secure=location.protocol==="https:"||location.hostname==="localhost";
+  setDiag("diagHttps",secure?"ok":"bad",secure?"✓ OK":"✕ NECESSÁRIO HTTPS");
+
+  const hasApi=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
+  setDiag("diagApi",hasApi?"ok":"bad",hasApi?"✓ SUPORTADO":"✕ NÃO SUPORTADO");
+
+  let perm=await cameraPermissionState();
+
+  if(!hasApi){
+    setDiag("diagPermission","bad","✕ INDISPONÍVEL");
+    setDiag("diagRear","bad","✕ INDISPONÍVEL");
+    return {ok:false,secure,hasApi,permission:perm,rear:false};
+  }
+
+  if(requestPermission){
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+      stream.getTracks().forEach(t=>t.stop());
+      perm=await cameraPermissionState();
+    }catch(e){
+      if(e&&e.name==="NotAllowedError")perm="denied";
+    }
+  }
+
+  if(perm==="granted")setDiag("diagPermission","ok","✓ CONCEDIDA");
+  else if(perm==="denied")setDiag("diagPermission","bad","✕ BLOQUEADA");
+  else if(perm==="prompt")setDiag("diagPermission","warn","⚠ AINDA NÃO CONCEDIDA");
+  else setDiag("diagPermission","warn","⚠ VERIFICAR AO ABRIR");
+
+  const devices=await listVideoDevices();
+  const rear=rearCameraCandidate(devices);
+  if(rear)setDiag("diagRear","ok","✓ DISPONÍVEL");
+  else if(devices.length)setDiag("diagRear","warn","⚠ CÂMERA DISPONÍVEL");
+  else setDiag("diagRear","warn","⚠ LIBERE A CÂMERA PARA IDENTIFICAR");
+
+  const help=$("#diagHelp");
+  if(help){
+    if(perm==="denied"){
+      help.classList.remove("hidden");
+      help.innerHTML="<b>CÂMERA BLOQUEADA.</b> Abra as permissões deste site no navegador e altere <b>Câmera</b> para <b>Permitir</b>. Depois toque em <b>Verificar novamente</b>.";
+    }else if(!secure){
+      help.classList.remove("hidden");
+      help.textContent="Abra o sistema pelo endereço HTTPS do GitHub Pages.";
+    }else{
+      help.classList.add("hidden");
+      help.textContent="";
+    }
+  }
+  return {ok:secure&&hasApi&&perm!=="denied",secure,hasApi,permission:perm,rear:!!rear,devices};
+}
+async function testCameraVideo(){
+  const result=await diagnoseCamera(true);
+  if(!result.secure){alert("A câmera exige HTTPS.");return}
+  if(!result.hasApi){alert("Este navegador não oferece acesso ao vídeo da câmera.");return}
+  if(result.permission==="denied"){alert("A câmera está bloqueada. Libere a permissão nas configurações do navegador.");return}
+  await openCameraFor("scanInput",{title:"Teste de câmera / vídeo",hint:"Aponte para qualquer código para testar a leitura."});
+}
+
 async function openCameraFor(targetId,opts={}){
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){
+    const msg="Este navegador não disponibiliza a função de vídeo/câmera necessária.";
+    if(targetId==="scanInput")setMsg(msg,"bad");else alert(msg);
+    return;
+  }
   if(location.protocol!=="https:"&&location.hostname!=="localhost"){
     const msg="A câmera exige HTTPS. Abra o sistema pelo link do GitHub Pages.";
     if(targetId==="scanInput")setMsg(msg,"bad");else alert(msg);
@@ -1252,6 +1360,27 @@ async function openCameraFor(targetId,opts={}){
     '<div class="cameraHint">'+esc(opts.hint||"Aponte para o código.")+'</div>'+
     '</div></div>';
   $("#closeCam").onclick=closeCam;
+
+  try{
+    const permission=await cameraPermissionState();
+    if(permission==="denied"){
+      $("#modal").innerHTML="";
+      const msg="CÂMERA BLOQUEADA. Libere a permissão de câmera no navegador e tente novamente.";
+      if(targetId==="scanInput")setMsg(msg,"bad");else alert(msg);
+      return;
+    }
+    if(permission!=="granted"){
+      const probeStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+      probeStream.getTracks().forEach(t=>t.stop());
+    }
+  }catch(e){
+    $("#modal").innerHTML="";
+    const msg=(e&&e.name==="NotAllowedError")
+      ?"CÂMERA BLOQUEADA PELO NAVEGADOR. Altere a permissão deste site para Permitir."
+      :"Não foi possível iniciar o vídeo da câmera neste dispositivo.";
+    if(targetId==="scanInput")setMsg(msg,"bad");else alert(msg);
+    return;
+  }
 
   const formats=[];
   if(window.Html5QrcodeSupportedFormats){
@@ -1341,7 +1470,8 @@ $("#moveBtn").onclick=transferBox;$("#moveBox").onkeydown=e=>{if(e.key==="Enter"
 $("#locateBtn").onclick=locateBoxes;$("#locateBox").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();locateBoxes()}};
 $("#mapRefresh").onclick=loadStockMap;
 ["soundMode","soundVolume","soundDuration","errorFlashes","flashDuration"].forEach(id=>$("#"+id).addEventListener("input",updateCfgLabels));
-$("#saveCfg").onclick=saveCfg;$("#testOk").onclick=async()=>{tone(true,true);flashSignal(true,true)};$("#testErr").onclick=async()=>{tone(false,true);flashSignal(false,true)};$("#sigTestSuccess").onclick=()=>pokayokeFeedback("success",{title:"✓ CORRETO",message:"Teste de sinalização de sucesso.",instruction:"SINAL DE CONFIRMAÇÃO."},{preview:true,holdMs:1800});$("#sigTestWarning").onclick=()=>pokayokeFeedback("warning",{title:"⚠ ATENÇÃO",message:"Teste de sinalização de atenção.",instruction:"REVISE A CONDIÇÃO ANTES DE PROSSEGUIR."},{preview:true,holdMs:2200});$("#sigTestError").onclick=()=>pokayokeFeedback("error",{title:"✕ INCORRETO",message:"Teste de sinalização de erro.",instruction:"NÃO PROSSIGA ATÉ CORRIGIR."},{preview:true,holdMs:2400});$("#sigTestCritical").onclick=()=>pokayokeFeedback("critical",{title:"⛔ CRÍTICO",message:"Teste de bloqueio crítico.",instruction:"AÇÃO DE ADM/ADMINISTRADOR NECESSÁRIA."},{preview:true,holdMs:2800});$("#audioBanner").onclick=unlockAudio;$("#createBackup").onclick=createBackup;$("#refreshBackups").onclick=loadBackups;$("#restoreBackup").onclick=restoreBackup;$("#resetDatabase").onclick=resetDatabase;
+$("#saveCfg").onclick=saveCfg;$("#testOk").onclick=async()=>{tone(true,true);flashSignal(true,true)};$("#testErr").onclick=async()=>{tone(false,true);flashSignal(false,true)};$("#sigTestSuccess").onclick=()=>pokayokeFeedback("success",{title:"✓ CORRETO",message:"Teste de sinalização de sucesso.",instruction:"SINAL DE CONFIRMAÇÃO."},{preview:true,holdMs:1800});$("#sigTestWarning").onclick=()=>pokayokeFeedback("warning",{title:"⚠ ATENÇÃO",message:"Teste de sinalização de atenção.",instruction:"REVISE A CONDIÇÃO ANTES DE PROSSEGUIR."},{preview:true,holdMs:2200});$("#sigTestError").onclick=()=>pokayokeFeedback("error",{title:"✕ INCORRETO",message:"Teste de sinalização de erro.",instruction:"NÃO PROSSIGA ATÉ CORRIGIR."},{preview:true,holdMs:2400});$("#sigTestCritical").onclick=()=>pokayokeFeedback("critical",{title:"⛔ CRÍTICO",message:"Teste de bloqueio crítico.",instruction:"AÇÃO DE ADM/ADMINISTRADOR NECESSÁRIA."},{preview:true,holdMs:2800});$("#audioBanner").onclick=unlockAudio;
+$("#diagCameraBtn").onclick=testCameraVideo;$("#diagRefreshBtn").onclick=()=>diagnoseCamera(false);$("#createBackup").onclick=createBackup;$("#refreshBackups").onclick=loadBackups;$("#restoreBackup").onclick=restoreBackup;$("#resetDatabase").onclick=resetDatabase;
 
 $$("[data-erp-tab]").forEach(b=>b.onclick=()=>showErpTab(b.dataset.erpTab));
 $("#erpProdNew").onclick=resetErpProduct;$("#erpProdSave").onclick=saveErpProduct;$("#erpProdSearch").oninput=renderErpManual;
