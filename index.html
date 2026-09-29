@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#087a4a">
-<title>Expedição Segura ILAN — v42</title>
+<title>Expedição Segura ILAN — v43</title>
 <style>
 :root{--g:#087a4a;--g2:#075b39;--bg:#f5f8f6;--ink:#17231e;--mut:#68756e;--line:#dfe8e2;--red:#b52c34;--white:#fff}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink)}button,input,select{font:inherit}button{cursor:pointer}.hidden{display:none!important}
@@ -49,13 +49,20 @@
 
 
 .pkyOverlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.18);backdrop-filter:blur(2px);pointer-events:none;opacity:0;transition:opacity .08s}.pkyOverlay.show{opacity:1}.pkyOverlay.interactive{pointer-events:auto}.pkyPanel{width:min(920px,96vw);border-radius:24px;padding:30px;border:5px solid rgba(255,255,255,.9);box-shadow:0 24px 80px rgba(0,0,0,.35);text-align:center;color:#fff}.pkyPanel.success{background:#07883f}.pkyPanel.warning{background:#d98d00}.pkyPanel.error{background:#d31b24}.pkyPanel.critical{background:#7d0711}.pkyPanel.validating{background:#174d6e}.pkyIcon{font-size:74px;line-height:1;font-weight:1000}.pkyTitle{font-size:clamp(30px,6vw,64px);font-weight:1000;margin:8px 0}.pkyMessage{font-size:clamp(18px,3vw,30px);font-weight:800}.pkyGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:18px;text-align:left}.pkyItem{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:14px;padding:12px}.pkyItem small{display:block;opacity:.86}.pkyItem b{font-size:18px}.pkyInstruction{margin-top:18px;background:#fff;color:#171717;border-radius:14px;padding:14px;font-weight:1000;font-size:20px}.audioBanner{position:fixed;left:50%;transform:translateX(-50%);bottom:82px;z-index:10001;background:#171717;color:#fff;padding:10px 16px;border-radius:999px;font-weight:900;box-shadow:0 8px 30px rgba(0,0,0,.3);cursor:pointer;display:none}.signalGrid{display:grid;grid-template-columns:1.1fr repeat(4,minmax(90px,1fr));gap:8px;align-items:center}.signalGrid .head{font-weight:900;color:var(--mut);font-size:11px;text-transform:uppercase}.signalRow{display:contents}.signalName{font-weight:900}.signalGrid input{width:100%}@media(max-width:760px){.pkyGrid{grid-template-columns:1fr}.pkyPanel{padding:20px}.signalGrid{grid-template-columns:1fr 1fr}.signalGrid .head{display:none}.signalRow{display:grid;grid-template-columns:1fr 1fr;grid-column:1/-1;gap:8px}.signalName{grid-column:1/-1}}
+
+.cameraHint{margin-top:8px;font-size:12px;color:var(--mut);text-align:center}
+#reader{width:100%;min-height:280px;background:#111;border-radius:14px;overflow:hidden}
+#reader video{object-fit:cover!important}
+.cameraStatus{margin-top:10px;padding:10px;border-radius:10px;background:#f4f7f5;font-weight:800;text-align:center}
+@media(max-width:760px){#reader{min-height:340px}.modal{width:min(96vw,560px)}}
+
 </style>
 </head>
 <body>
 <div id="flash" class="flash"></div>
 <section id="login" class="login">
   <div class="loginCard">
-    <div class="brand"><div class="mark">IL</div><div><b>ILAN</b><small>Expedição Segura • v42</small></div></div>
+    <div class="brand"><div class="mark">IL</div><div><b>ILAN</b><small>Expedição Segura • v43</small></div></div>
     <h1>Acesso ao sistema</h1>
     <div class="sub">FIFO, liberação para conferência e leitura de volumes.</div>
     <form id="loginForm">
@@ -80,7 +87,7 @@
       <button data-v="cad">▧ &nbsp; Cadastros e Etiquetas</button>
       <button data-v="cfg">⚙ &nbsp; Configurações</button>
     </nav>
-    <div class="foot"><b>Versão 42 · Poka-Yoke Andon</b>Backup/restauração, reset seguro, cadastros, etiquetas e liberação dinâmica.</div>
+    <div class="foot"><b>Versão 43 · Câmera Mobile</b>Backup/restauração, reset seguro, cadastros, etiquetas e liberação dinâmica.</div>
   </aside>
   <div class="work">
     <header class="top">
@@ -135,6 +142,7 @@
             <div class="cardB">
               <div class="scan">
                 <input id="prodBox" class="input" autocomplete="off" placeholder="Leia o código da caixa / volume">
+                <button id="prodCamBtn" class="btn secondary">📷 Câmera</button>
                 <button id="prodOutBtn" class="btn primary">Registrar saída</button>
               </div>
               <div id="prodOutMsg" class="feedback">Aguardando leitura da caixa.</div>
@@ -145,11 +153,11 @@
             <div class="cardH"><div><h3>2. Alocar no endereço</h3><div class="sub">Leia a caixa e depois o código do endereço.</div></div><span class="badge">Estoque</span></div>
             <div class="cardB">
               <div style="display:grid;gap:8px">
-                <input id="allocBox" class="input" autocomplete="off" placeholder="1º Leia a CAIXA">
-                <input id="allocAddr" class="input" autocomplete="off" placeholder="2º Leia o ENDEREÇO">
+                <div class="scan"><input id="allocBox" class="input" autocomplete="off" placeholder="1º Leia a CAIXA"><button id="allocBoxCamBtn" class="btn secondary">📷 Caixa</button></div>
+                <div class="scan"><input id="allocAddr" class="input" autocomplete="off" placeholder="2º Leia o ENDEREÇO"><button id="allocAddrCamBtn" class="btn secondary">📷 Endereço</button></div>
                 <button id="allocBtn" class="btn primary">✓ Confirmar alocação</button>
               </div>
-              <div id="allocMsg" class="feedback">Caixa → Endereço → OK</div>
+              <div id="allocMsg" class="feedback">Caixa → Endereço → OK</div><div class="cameraHint">No celular/tablet: 📷 Caixa → 📷 Endereço → validação automática.</div>
             </div>
           </div>
 
@@ -157,8 +165,8 @@
             <div class="cardH"><div><h3>Transferir endereço</h3><div class="sub">Mantém o histórico da localização anterior.</div></div><span class="badge">Movimentação</span></div>
             <div class="cardB">
               <div style="display:grid;gap:8px">
-                <input id="moveBox" class="input" autocomplete="off" placeholder="Leia a CAIXA">
-                <input id="moveAddr" class="input" autocomplete="off" placeholder="Leia o NOVO ENDEREÇO">
+                <div class="scan"><input id="moveBox" class="input" autocomplete="off" placeholder="Leia a CAIXA"><button id="moveBoxCamBtn" class="btn secondary">📷 Caixa</button></div>
+                <div class="scan"><input id="moveAddr" class="input" autocomplete="off" placeholder="Leia o NOVO ENDEREÇO"><button id="moveAddrCamBtn" class="btn secondary">📷 Novo endereço</button></div>
                 <button id="moveBtn" class="btn secondary">Transferir endereço</button>
               </div>
               <div id="moveMsg" class="feedback">Nenhuma transferência iniciada.</div>
@@ -1221,8 +1229,100 @@ async function loadStockMap(){
 function view(v){S.view=v;["pedidos","conf","aloc","erp","stock","cad","cfg"].forEach(x=>$("#v-"+x).classList.add("hidden"));$("#v-"+v).classList.remove("hidden");$$("[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===v));$("#title").textContent={pedidos:"Liberação FIFO",conf:"Conferência",aloc:"Saída / Alocação",erp:"Entrada de Dados / ERP",stock:"Estoque / FIFO",cad:"Cadastros e Etiquetas",cfg:"Configurações"}[v];if(v==="conf")setTimeout(focus,60);if(v==="aloc"){setTimeout(()=>$("#prodBox").focus(),60);loadStockMap()}if(v==="erp"){loadErp().catch(e=>{const m=$("#erpImportMsg");if(m){m.textContent=reason(e.message);m.className="msg bad"}})}if(v==="stock")renderStock()}
 
 async function scan(){const inp=$("#scanInput"),code=inp.value.trim();if(!code){focus();return}const now=Date.now(),deb=Number((S.cfg.signal_config||{}).debounce_ms||900);if(S.scanLock||(code===S.lastScanCode&&now-S.lastScanAt<deb)){await pokayokeFeedback("warning",{title:"⚠ LEITURA REPETIDA",message:"Código ignorado para evitar duplicidade.",codigo_lido:code,instruction:"AGUARDE A LIBERAÇÃO DA PRÓXIMA LEITURA."},{context:"CONFERENCIA"});inp.value="";setTimeout(focus,80);return}if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila.","bad");await pokayokeFeedback("error",{title:"✕ FILA NÃO SELECIONADA",message:"Selecione a fila antes de conferir.",codigo_lido:code,instruction:"SELECIONE A FILA CORRETA E LEIA NOVAMENTE."},{context:"CONFERENCIA"});return}S.scanLock=true;S.lastScanCode=code;S.lastScanAt=now;$("#scanBtn").disabled=true;setMsg("Validando "+code+"…","");const expected=expectedSnapshot(),slow=setTimeout(()=>pokayokeFeedback("validating",{message:"Validando leitura..."},{holdMs:1200}),300);try{const x=await api({action:"scan",fila_id:S.queue.fila.id,codigo:code});clearTimeout(slow);if(x.ok&&(x.resultado==="LIBERADO"||x.resultado==="CONCLUIDA")){const exp=expected||{},loc=exp.endereco||{};await pokayokeFeedback("success",{title:x.resultado==="CONCLUIDA"?"✓ FILA CONCLUÍDA":"✓ PRODUTO CORRETO",message:x.resultado==="CONCLUIDA"?"Conferência concluída com sucesso.":(x.produto||code),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:x.produto||exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:x.sequencia||exp.sequencia,instruction:x.resultado==="CONCLUIDA"?"FILA PRONTA PARA A PRÓXIMA ETAPA.":"OK — PROSSIGA PARA O PRÓXIMO ITEM."},{context:"CONFERENCIA"});setMsg(x.resultado==="CONCLUIDA"?"Fila concluída com sucesso.":"✓ CORRETO — "+(x.produto||code),"good");if(x.state&&x.state.ok)S.queue=x.state;if(x.aguardando_complemento)setMsg("Itens liberados conferidos. Aguardando complemento do ADM.","good");await loadAll()}else throw new Error(x.motivo||"REJEITADO")}catch(er){clearTimeout(slow);const exp=expected||{},loc=exp.endereco||{},lvl=classifyPkyError(er.message);await pokayokeFeedback(lvl,{title:lvl==="warning"?"⚠ ATENÇÃO":lvl==="critical"?"⛔ OPERAÇÃO BLOQUEADA":"✕ CAIXA INCORRETA",message:reason(er.message),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco_esperado:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:exp.sequencia,instruction:lvl==="warning"?"CONFIRA A SEQUÊNCIA/FIFO ANTES DE PROSSEGUIR.":"NÃO RETIRAR ESTA CAIXA. PROCURE O ITEM ESPERADO NO LOCAL INDICADO."},{context:"CONFERENCIA",block:lvl==="critical"});setMsg("✕ "+reason(er.message),"bad")}finally{inp.value="";$("#scanBtn").disabled=false;S.scanLock=false;setTimeout(focus,80)}}
-async function camera(){if(location.protocol==="file:"){setMsg("A câmera exige publicação HTTPS. O leitor manual funciona neste arquivo de teste.","bad");return}if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila antes de usar a câmera.","bad");return}$("#modal").innerHTML='<div class="modalback"><div class="modal"><div class="modalH"><h3>Leitor por câmera</h3><button id="closeCam" class="btn secondary">Fechar</button></div><div id="reader" class="reader"></div><div class="msg">Aponte para o código do volume.</div></div></div>';$("#closeCam").onclick=closeCam;try{S.scanner=new Html5Qrcode("reader");S.running=true;await S.scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:280,height:150}},async txt=>{if(!S.running)return;$("#scanInput").value=txt;await closeCam();await scan()})}catch{$("#modal .msg").textContent="Não foi possível abrir a câmera. Verifique a permissão."}}
-async function closeCam(){if(S.scanner&&S.running){S.running=false;try{await S.scanner.stop()}catch{}try{await S.scanner.clear()}catch{}}S.scanner=null;$("#modal").innerHTML="";focus()}
+async function openCameraFor(targetId,opts={}){
+  if(location.protocol!=="https:"&&location.hostname!=="localhost"){
+    const msg="A câmera exige HTTPS. Abra o sistema pelo link do GitHub Pages.";
+    if(targetId==="scanInput")setMsg(msg,"bad");else alert(msg);
+    return;
+  }
+  if(typeof Html5Qrcode==="undefined"){
+    const msg="O leitor por câmera não carregou. Verifique a conexão com a internet.";
+    if(targetId==="scanInput")setMsg(msg,"bad");else alert(msg);
+    return;
+  }
+  if(opts.requireQueue&&(!S.queue||!S.queue.fila)){
+    setMsg("Selecione uma fila antes de usar a câmera.","bad");
+    return;
+  }
+
+  $("#modal").innerHTML='<div class="modalback"><div class="modal">'+
+    '<div class="modalH"><div><h3>'+esc(opts.title||"Leitor por câmera")+'</h3><div class="sub">Código de barras ou QR Code</div></div><button id="closeCam" class="btn secondary">Fechar</button></div>'+
+    '<div id="reader" class="reader"></div>'+
+    '<div id="cameraStatus" class="cameraStatus">📷 Iniciando câmera traseira...</div>'+
+    '<div class="cameraHint">'+esc(opts.hint||"Aponte para o código.")+'</div>'+
+    '</div></div>';
+  $("#closeCam").onclick=closeCam;
+
+  const formats=[];
+  if(window.Html5QrcodeSupportedFormats){
+    const F=Html5QrcodeSupportedFormats;
+    [F.CODE_128,F.CODE_39,F.CODE_93,F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.QR_CODE,F.DATA_MATRIX,F.ITF].forEach(x=>{
+      if(x!==undefined)formats.push(x);
+    });
+  }
+
+  try{
+    S.scanner=new Html5Qrcode("reader",formats.length?{formatsToSupport:formats,verbose:false}:{verbose:false});
+    S.running=true;
+    let accepted=false;
+
+    const onSuccess=async txt=>{
+      if(!S.running||accepted)return;
+      const code=String(txt||"").trim();
+      if(!code)return;
+      accepted=true;
+      const status=$("#cameraStatus");
+      if(status)status.textContent="✓ Código detectado: "+code;
+      try{if(navigator.vibrate)navigator.vibrate(60)}catch{}
+      const el=$("#"+targetId);
+      if(el)el.value=code;
+      await closeCam();
+
+      if(opts.nextTarget)setTimeout(()=>$("#"+opts.nextTarget)?.focus(),80);
+      if(opts.action==="scan")await scan();
+      if(opts.action==="productionOut")await productionOut();
+      if(opts.action==="allocate"&&$("#allocBox").value.trim()&&$("#allocAddr").value.trim())await allocateBox();
+      if(opts.action==="transfer"&&$("#moveBox").value.trim()&&$("#moveAddr").value.trim())await transferBox();
+    };
+
+    const config={
+      fps:12,
+      qrbox:(w,h)=>({width:Math.max(220,Math.min(Math.floor(w*.88),420)),height:Math.max(120,Math.min(Math.floor(h*.36),190))}),
+      aspectRatio:1.777778,
+      disableFlip:false
+    };
+
+    try{
+      await S.scanner.start({facingMode:{exact:"environment"}},config,onSuccess,()=>{});
+    }catch{
+      await S.scanner.start({facingMode:"environment"},config,onSuccess,()=>{});
+    }
+    const status=$("#cameraStatus");
+    if(status)status.textContent="Câmera ativa — enquadre o código na área de leitura.";
+  }catch(e){
+    S.running=false;
+    const status=$("#cameraStatus");
+    if(status)status.textContent="✕ Não foi possível abrir a câmera. Libere a permissão no navegador e tente novamente.";
+  }
+}
+
+async function camera(){
+  return openCameraFor("scanInput",{
+    title:"Conferência por câmera",
+    hint:"Leia a caixa esperada da fila de conferência.",
+    requireQueue:true,
+    action:"scan"
+  });
+}
+async function closeCam(){
+  S.running=false;
+  if(S.scanner){
+    try{await S.scanner.stop()}catch{}
+    try{await S.scanner.clear()}catch{}
+  }
+  S.scanner=null;
+  $("#modal").innerHTML="";
+}
 async function syncLoop(){if(S.polling)return;S.polling=true;setInterval(async()=>{try{const ss=(await sb.auth.getSession()).data.session;if(!ss)return;const current=S.queue&&S.queue.fila&&S.queue.fila.id;await loadAll();if(current)await loadQ(current)}catch{}},2000)}
 async function init(){const ss=(await sb.auth.getSession()).data.session;if(!ss){$("#login").classList.remove("hidden");$("#app").classList.add("hidden");return}try{S.profile=(await api({action:"profile"})).perfil;$("#login").classList.add("hidden");$("#app").classList.remove("hidden");await Promise.all([loadCfg(),loadCad(),loadAll(),loadBackups()]);syncLoop()}catch(er){await sb.auth.signOut();$("#login").classList.remove("hidden");$("#app").classList.add("hidden");$("#loginMsg").textContent=reason(er.message);$("#loginMsg").className="msg bad"}}
 $("#loginForm").onsubmit=async ev=>{ev.preventDefault();$("#loginBtn").disabled=true;$("#loginMsg").textContent="Entrando…";const r=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pass").value});if(r.error){$("#loginMsg").textContent=r.error.message;$("#loginMsg").className="msg bad"}else await init();$("#loginBtn").disabled=false};
@@ -1230,6 +1330,12 @@ $("#logout").onclick=async()=>{await closeCam();await sb.auth.signOut();S.queue=
 $$("[data-v]").forEach(b=>b.onclick=()=>view(b.dataset.v));$("#queueSel").onchange=async ev=>{await loadQ(ev.target.value||null);focus()};$("#scanBtn").onclick=scan;$("#scanInput").onkeydown=ev=>{if(ev.key==="Enter"){ev.preventDefault();scan()}};
 $("#focusBtn").onclick=focus;$("#camBtn").onclick=camera;$("#search").oninput=renderStock;$("#stSel").onchange=renderStock;
 $("#prodOutBtn").onclick=productionOut;$("#prodBox").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();productionOut()}};
+$("#prodCamBtn").onclick=()=>openCameraFor("prodBox",{title:"Saída da Produção",hint:"Leia o código da caixa ou volume.",action:"productionOut"});
+$("#allocBoxCamBtn").onclick=()=>openCameraFor("allocBox",{title:"Alocação — Caixa",hint:"1º leia a caixa.",nextTarget:"allocAddr"});
+$("#allocAddrCamBtn").onclick=()=>openCameraFor("allocAddr",{title:"Alocação — Endereço",hint:"2º leia o endereço.",action:"allocate"});
+$("#moveBoxCamBtn").onclick=()=>openCameraFor("moveBox",{title:"Transferência — Caixa",hint:"Leia a caixa que será transferida.",nextTarget:"moveAddr"});
+$("#moveAddrCamBtn").onclick=()=>openCameraFor("moveAddr",{title:"Transferência — Novo endereço",hint:"Leia o endereço de destino.",action:"transfer"});
+
 $("#allocBtn").onclick=allocateBox;$("#allocBox").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();$("#allocAddr").focus()}};$("#allocAddr").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();allocateBox()}};
 $("#moveBtn").onclick=transferBox;$("#moveBox").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();$("#moveAddr").focus()}};$("#moveAddr").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();transferBox()}};
 $("#locateBtn").onclick=locateBoxes;$("#locateBox").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();locateBoxes()}};
