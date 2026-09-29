@@ -1074,6 +1074,152 @@ function renderStock(){
   }).join(""):'<tr><td colspan="6">Nenhum item encontrado.</td></tr>';
 }
 
+async function productionOut(){
+  const codigo=$("#prodBox").value.trim();
+  if(!codigo)return;
+  $("#prodOutBtn").disabled=true;
+  $("#prodOutMsg").textContent="Registrando saída...";
+  try{
+    const x=await api({action:"production_out",codigo});
+    const r=x.resultado||{};
+    await pokayokeFeedback("success",{
+      title:"✓ SAÍDA REGISTRADA",
+      message:(r.codigo_caixa||codigo)+" — AGUARDANDO ALOCAÇÃO",
+      codigo_lido:codigo,
+      caixa:r.codigo_caixa||codigo,
+      instruction:"LEVE A CAIXA PARA A ETAPA DE ALOCAÇÃO."
+    },{context:"SAIDA_PRODUCAO"});
+    $("#prodOutMsg").textContent="✓ "+(r.codigo_caixa||codigo)+" — AGUARDANDO ALOCAÇÃO";
+    $("#prodOutMsg").className="feedback good";
+    $("#prodBox").value="";
+    await loadAll();
+  }catch(e){
+    const lvl=classifyPkyError(e.message);
+    await pokayokeFeedback(lvl,{
+      title:lvl==="critical"?"⛔ OPERAÇÃO BLOQUEADA":"✕ SAÍDA NÃO REGISTRADA",
+      message:reason(e.message),
+      codigo_lido:codigo,
+      instruction:"NÃO MOVIMENTE ESTA CAIXA ATÉ CORRIGIR A PENDÊNCIA."
+    },{context:"SAIDA_PRODUCAO",block:lvl==="critical"});
+    $("#prodOutMsg").textContent="✕ "+reason(e.message);
+    $("#prodOutMsg").className="feedback bad";
+  }finally{
+    $("#prodOutBtn").disabled=false;
+    $("#prodBox").focus();
+  }
+}
+
+async function allocateBox(){
+  const codigo=$("#allocBox").value.trim();
+  const endereco=$("#allocAddr").value.trim();
+  if(!codigo||!endereco)return;
+  $("#allocBtn").disabled=true;
+  $("#allocMsg").textContent="Validando caixa e endereço...";
+  let slow=setTimeout(()=>pokayokeFeedback("validating",{message:"Validando caixa e endereço..."},{holdMs:900}),300);
+  try{
+    const x=await api({action:"allocate",codigo,endereco});
+    clearTimeout(slow);
+    const r=x.resultado||{};
+    await pokayokeFeedback("success",{
+      title:"✓ CAIXA ALOCADA",
+      message:(r.codigo_caixa||codigo)+" → "+(r.endereco_codigo||endereco),
+      codigo_lido:codigo,
+      caixa:r.codigo_caixa||codigo,
+      endereco_esperado:r.endereco_codigo||endereco,
+      instruction:"ALOCAÇÃO CONFIRMADA. PRÓXIMA CAIXA."
+    },{context:"ALOCACAO"});
+    $("#allocMsg").textContent="✓ OK — "+(r.codigo_caixa||codigo)+" alocada em "+(r.endereco_codigo||endereco);
+    $("#allocMsg").className="feedback good";
+    $("#allocBox").value="";
+    $("#allocAddr").value="";
+    await Promise.all([loadAll(),loadStockMap()]);
+  }catch(e){
+    clearTimeout(slow);
+    const lvl=classifyPkyError(e.message);
+    await pokayokeFeedback(lvl,{
+      title:lvl==="critical"?"⛔ ALOCAÇÃO BLOQUEADA":"✕ ALOCAÇÃO INCORRETA",
+      message:reason(e.message),
+      codigo_lido:codigo,
+      endereco_esperado:endereco,
+      instruction:"NÃO ALOQUE ESTA CAIXA. CORRIJA O CÓDIGO OU O ENDEREÇO E LEIA NOVAMENTE."
+    },{context:"ALOCACAO",block:lvl==="critical"});
+    $("#allocMsg").textContent="✕ "+reason(e.message);
+    $("#allocMsg").className="feedback bad";
+  }finally{
+    $("#allocBtn").disabled=false;
+    $("#allocBox").focus();
+  }
+}
+
+async function transferBox(){
+  const codigo=$("#moveBox").value.trim();
+  const endereco=$("#moveAddr").value.trim();
+  if(!codigo||!endereco)return;
+  $("#moveBtn").disabled=true;
+  $("#moveMsg").textContent="Transferindo...";
+  try{
+    const x=await api({action:"transfer_address",codigo,endereco});
+    const r=x.resultado||{};
+    await pokayokeFeedback("success",{
+      title:"✓ ENDEREÇO TRANSFERIDO",
+      message:(r.codigo_caixa||codigo)+" → "+(r.endereco_codigo||endereco),
+      codigo_lido:codigo,
+      endereco_esperado:r.endereco_codigo||endereco,
+      instruction:"NOVO ENDEREÇO REGISTRADO COM HISTÓRICO."
+    },{context:"TRANSFERENCIA"});
+    $("#moveMsg").textContent="✓ Transferida para "+(r.endereco_codigo||endereco)+" — histórico preservado.";
+    $("#moveMsg").className="feedback good";
+    $("#moveBox").value="";
+    $("#moveAddr").value="";
+    await Promise.all([loadAll(),loadStockMap()]);
+  }catch(e){
+    const lvl=classifyPkyError(e.message);
+    await pokayokeFeedback(lvl,{
+      title:lvl==="warning"?"⚠ ATENÇÃO NA TRANSFERÊNCIA":lvl==="critical"?"⛔ TRANSFERÊNCIA BLOQUEADA":"✕ TRANSFERÊNCIA INCORRETA",
+      message:reason(e.message),
+      codigo_lido:codigo,
+      endereco_esperado:endereco,
+      instruction:"MANTENHA A CAIXA NO ENDEREÇO ATUAL ATÉ CORRIGIR A PENDÊNCIA."
+    },{context:"TRANSFERENCIA",block:lvl==="critical"});
+    $("#moveMsg").textContent="✕ "+reason(e.message);
+    $("#moveMsg").className="feedback bad";
+  }finally{
+    $("#moveBtn").disabled=false;
+    $("#moveBox").focus();
+  }
+}
+
+function focus(){if(S.view==="conf"){$("#scanInput").focus();$("#scanInput").select()}}
+
+async function locateBoxes(){
+  const term=$("#locateBox").value.trim(); if(!term)return;
+  $("#locateResults").innerHTML='<div class="msg">Pesquisando...</div>';
+  try{
+    const x=await api({action:"locate_box",search:term});
+    const rows=x.resultados||[];
+    $("#locateResults").innerHTML=rows.length?rows.map(r=>{
+      const loc=[r.endereco_codigo,r.modulo&&("Mód. "+r.modulo),r.nivel&&("Nível "+r.nivel)].filter(Boolean).join(" → ");
+      return '<div class="seq"><div class="n">📦</div><div><b>'+esc(r.codigo_caixa||r.codigo_barra||"Caixa")+'</b><span>'+esc(r.produto_descricao||"")+' • '+esc(r.codigo_volume||"")+' • Lote '+esc(r.codigo_lote||"")+'</span><span><b>Local:</b> '+esc(loc||"SEM ENDEREÇO")+' • '+esc(r.status||"")+'</span></div><span class="badge">'+esc(r.ordem_fifo||"—")+'º FIFO</span></div>'
+    }).join(""):'<div class="msg">Nenhuma caixa encontrada.</div>';
+  }catch(e){$("#locateResults").innerHTML='<div class="msg bad">'+esc(reason(e.message))+'</div>'}
+}
+
+async function loadStockMap(){
+  const box=$("#stockMap"); if(!box)return;
+  try{
+    const x=await api({action:"stock_map"});
+    const mapa=x.mapa||[], caixas=x.caixas||[];
+    box.innerHTML=mapa.length?mapa.map(e=>{
+      const itens=caixas.filter(v=>Number(v.endereco_id)===Number(e.endereco_id));
+      const tit=[e.endereco_codigo,e.modulo&&("Mód. "+e.modulo),e.nivel&&("Nível "+e.nivel)].filter(Boolean).join(" • ");
+      const inner=itens.length?itens.map(v=>'<div class="comp"><b>'+esc(v.codigo_caixa||v.codigo_barra||"Caixa")+'</b><span>'+esc(v.produto_descricao||"")+' • '+esc(v.codigo_volume||"")+'</span><span>Lote '+esc(v.codigo_lote||"")+'</span><span>'+esc(v.status||"")+'</span></div>').join(""):'<div class="msg">Endereço vazio.</div>';
+      return '<article class="order"><div class="orderMain"><div class="ref">'+esc(tit)+'</div><div class="prod">'+itens.length+' caixa(s)</div><div class="fifo">'+esc(e.rua||"")+'<small>'+esc(e.posicao||"")+'</small></div><div class="rel"><span class="badge">'+esc(e.ocupacao||0)+' ocupada(s)</span></div></div><div class="detail">'+inner+'</div></article>'
+    }).join(""):'<div class="msg">Nenhum endereço cadastrado.</div>';
+  }catch(e){box.innerHTML='<div class="msg bad">'+esc(reason(e.message))+'</div>'}
+}
+
+function view(v){S.view=v;["pedidos","conf","aloc","erp","stock","cad","cfg"].forEach(x=>$("#v-"+x).classList.add("hidden"));$("#v-"+v).classList.remove("hidden");$$("[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===v));$("#title").textContent={pedidos:"Liberação FIFO",conf:"Conferência",aloc:"Saída / Alocação",erp:"Entrada de Dados / ERP",stock:"Estoque / FIFO",cad:"Cadastros e Etiquetas",cfg:"Configurações"}[v];if(v==="conf")setTimeout(focus,60);if(v==="aloc"){setTimeout(()=>$("#prodBox").focus(),60);loadStockMap()}if(v==="erp"){loadErp().catch(e=>{const m=$("#erpImportMsg");if(m){m.textContent=reason(e.message);m.className="msg bad"}})}if(v==="stock")renderStock()}
+
 async function scan(){const inp=$("#scanInput"),code=inp.value.trim();if(!code){focus();return}const now=Date.now(),deb=Number((S.cfg.signal_config||{}).debounce_ms||900);if(S.scanLock||(code===S.lastScanCode&&now-S.lastScanAt<deb)){await pokayokeFeedback("warning",{title:"⚠ LEITURA REPETIDA",message:"Código ignorado para evitar duplicidade.",codigo_lido:code,instruction:"AGUARDE A LIBERAÇÃO DA PRÓXIMA LEITURA."},{context:"CONFERENCIA"});inp.value="";setTimeout(focus,80);return}if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila.","bad");await pokayokeFeedback("error",{title:"✕ FILA NÃO SELECIONADA",message:"Selecione a fila antes de conferir.",codigo_lido:code,instruction:"SELECIONE A FILA CORRETA E LEIA NOVAMENTE."},{context:"CONFERENCIA"});return}S.scanLock=true;S.lastScanCode=code;S.lastScanAt=now;$("#scanBtn").disabled=true;setMsg("Validando "+code+"…","");const expected=expectedSnapshot(),slow=setTimeout(()=>pokayokeFeedback("validating",{message:"Validando leitura..."},{holdMs:1200}),300);try{const x=await api({action:"scan",fila_id:S.queue.fila.id,codigo:code});clearTimeout(slow);if(x.ok&&(x.resultado==="LIBERADO"||x.resultado==="CONCLUIDA")){const exp=expected||{},loc=exp.endereco||{};await pokayokeFeedback("success",{title:x.resultado==="CONCLUIDA"?"✓ FILA CONCLUÍDA":"✓ PRODUTO CORRETO",message:x.resultado==="CONCLUIDA"?"Conferência concluída com sucesso.":(x.produto||code),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:x.produto||exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:x.sequencia||exp.sequencia,instruction:x.resultado==="CONCLUIDA"?"FILA PRONTA PARA A PRÓXIMA ETAPA.":"OK — PROSSIGA PARA O PRÓXIMO ITEM."},{context:"CONFERENCIA"});setMsg(x.resultado==="CONCLUIDA"?"Fila concluída com sucesso.":"✓ CORRETO — "+(x.produto||code),"good");if(x.state&&x.state.ok)S.queue=x.state;if(x.aguardando_complemento)setMsg("Itens liberados conferidos. Aguardando complemento do ADM.","good");await loadAll()}else throw new Error(x.motivo||"REJEITADO")}catch(er){clearTimeout(slow);const exp=expected||{},loc=exp.endereco||{},lvl=classifyPkyError(er.message);await pokayokeFeedback(lvl,{title:lvl==="warning"?"⚠ ATENÇÃO":lvl==="critical"?"⛔ OPERAÇÃO BLOQUEADA":"✕ CAIXA INCORRETA",message:reason(er.message),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco_esperado:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:exp.sequencia,instruction:lvl==="warning"?"CONFIRA A SEQUÊNCIA/FIFO ANTES DE PROSSEGUIR.":"NÃO RETIRAR ESTA CAIXA. PROCURE O ITEM ESPERADO NO LOCAL INDICADO."},{context:"CONFERENCIA",block:lvl==="critical"});setMsg("✕ "+reason(er.message),"bad")}finally{inp.value="";$("#scanBtn").disabled=false;S.scanLock=false;setTimeout(focus,80)}}
 async function camera(){if(location.protocol==="file:"){setMsg("A câmera exige publicação HTTPS. O leitor manual funciona neste arquivo de teste.","bad");return}if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila antes de usar a câmera.","bad");return}$("#modal").innerHTML='<div class="modalback"><div class="modal"><div class="modalH"><h3>Leitor por câmera</h3><button id="closeCam" class="btn secondary">Fechar</button></div><div id="reader" class="reader"></div><div class="msg">Aponte para o código do volume.</div></div></div>';$("#closeCam").onclick=closeCam;try{S.scanner=new Html5Qrcode("reader");S.running=true;await S.scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:280,height:150}},async txt=>{if(!S.running)return;$("#scanInput").value=txt;await closeCam();await scan()})}catch{$("#modal .msg").textContent="Não foi possível abrir a câmera. Verifique a permissão."}}
 async function closeCam(){if(S.scanner&&S.running){S.running=false;try{await S.scanner.stop()}catch{}try{await S.scanner.clear()}catch{}}S.scanner=null;$("#modal").innerHTML="";focus()}
