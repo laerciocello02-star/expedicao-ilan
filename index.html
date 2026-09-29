@@ -55,7 +55,7 @@
 <div id="flash" class="flash"></div>
 <section id="login" class="login">
   <div class="loginCard">
-    <div class="brand"><div class="mark">IL</div><div><b>ILAN</b><small>Expedição Segura • v38</small></div></div>
+    <div class="brand"><div class="mark">IL</div><div><b>ILAN</b><small>Expedição Segura • v42</small></div></div>
     <h1>Acesso ao sistema</h1>
     <div class="sub">FIFO, liberação para conferência e leitura de volumes.</div>
     <form id="loginForm">
@@ -1046,6 +1046,34 @@ async function releaseOrder(ref,btn,ids){
 }
 function renderQueueSel(){const s=$("#queueSel"),cur=S.queue&&S.queue.fila&&S.queue.fila.id||"";s.innerHTML='<option value="">Selecione uma fila</option>'+S.queues.filter(q=>q.status!=="CANCELADA").map(q=>'<option value="'+q.id+'" '+(String(q.id)===String(cur)?"selected":"")+'>'+esc(q.pedido_ref||q.codigo)+' · '+esc(q.status)+' · '+(q.done||0)+'/'+(q.total||0)+'</option>').join("")}
 function renderConf(){const q=S.queue;if(!q||!q.ok){$("#qname").textContent="Nenhuma fila ativa";$("#qstat").textContent="Libere um pedido para iniciar.";$("#qprog").textContent="0/0";$("#nextName").textContent="—";$("#nextCode").textContent="—";$("#nextAddr").textContent="Endereço: —";$("#seqs").innerHTML='<div class="msg">Nenhuma fila selecionada.</div>';return}const it=q.itens||[],done=it.filter(i=>i.status==="CONFERIDO").length,next=it.find(i=>i.status==="AGUARDANDO");$("#qname").textContent=q.fila.pedido_ref||q.fila.codigo;$("#qstat").textContent=(q.fila.descricao||"")+" • "+q.fila.status;$("#qprog").textContent=done+"/"+it.length;if(next){$("#nextName").textContent=next.produto&&next.produto.descricao||next.codigo_volume||"Volume";$("#nextCode").textContent=(next.codigo_volume||"")+" • "+(next.codigo_barra||"");$("#nextAddr").textContent="Buscar em: "+(next.endereco&&next.endereco.codigo||"SEM ENDEREÇO")}else{$("#nextName").textContent=q.fila.status==="CONCLUIDA"?"CONFERÊNCIA CONCLUÍDA":(q.fila.status==="AGUARDANDO_COMPLEMENTO"?"AGUARDANDO COMPLEMENTO DO ADM":"Sem pendências");$("#nextCode").textContent=q.fila.status==="AGUARDANDO_COMPLEMENTO"?"Os itens já liberados foram conferidos. Aguarde nova liberação do ADM.":"Todos os volumes foram processados.";$("#nextAddr").textContent=""}$("#seqs").innerHTML=it.map(i=>{const cl=i.status==="CONFERIDO"?"done":(next&&next.id===i.id?"current":"");const st=i.status==="CONFERIDO"?"OK":(next&&next.id===i.id?"PRÓXIMO":"AGUARDA");return '<div class="seq '+cl+'"><div class="n">'+i.sequencia+'</div><div><b>'+esc(i.produto&&i.produto.descricao||i.codigo_volume||"Volume")+'</b><span>'+esc(i.codigo_barra||"")+' • '+esc(i.endereco&&i.endereco.codigo||"Sem endereço")+'</span></div><span class="badge">'+st+'</span></div>'}).join("");renderQueueSel()}
+
+function renderStock(){
+  const body=$("#tbody");
+  if(!body)return;
+  const q=($("#search")?.value||"").toLowerCase();
+  const st=$("#stSel")?.value||"TODOS";
+  const rows=(S.stock||[]).filter(r=>{
+    const statusOk=st==="TODOS"||r.status===st;
+    const searchOk=!q||[
+      r.produto_descricao,r.produto_codigo,r.codigo_barra,r.codigo_caixa,
+      r.codigo_volume,r.codigo_lote,r.cor_descricao,r.endereco_codigo,
+      r.rua,r.posicao,r.modulo,r.nivel,r.status
+    ].some(v=>String(v||"").toLowerCase().includes(q));
+    return statusOk&&searchOk;
+  });
+  body.innerHTML=rows.length?rows.map(r=>{
+    const local=[r.endereco_codigo,r.rua,r.posicao,r.modulo&&("Mód. "+r.modulo),r.nivel&&("Nível "+r.nivel)].filter(Boolean).join(" • ");
+    return '<tr>'+
+      '<td>'+esc(r.ordem_fifo||"—")+'</td>'+
+      '<td><b>'+esc(r.produto_descricao||"")+'</b><br><small>'+esc(r.cor_descricao||"")+' • '+esc(r.codigo_volume||"")+'</small></td>'+
+      '<td><b>'+esc(r.codigo_caixa||"—")+'</b><br><small>'+esc(r.codigo_barra||"")+'</small></td>'+
+      '<td>'+esc(r.codigo_lote||"—")+'</td>'+
+      '<td>'+esc(local||"SEM ENDEREÇO")+'</td>'+
+      '<td><span class="badge">'+esc(r.status||"")+'</span></td>'+
+    '</tr>';
+  }).join(""):'<tr><td colspan="6">Nenhum item encontrado.</td></tr>';
+}
+
 async function scan(){const inp=$("#scanInput"),code=inp.value.trim();if(!code){focus();return}const now=Date.now(),deb=Number((S.cfg.signal_config||{}).debounce_ms||900);if(S.scanLock||(code===S.lastScanCode&&now-S.lastScanAt<deb)){await pokayokeFeedback("warning",{title:"⚠ LEITURA REPETIDA",message:"Código ignorado para evitar duplicidade.",codigo_lido:code,instruction:"AGUARDE A LIBERAÇÃO DA PRÓXIMA LEITURA."},{context:"CONFERENCIA"});inp.value="";setTimeout(focus,80);return}if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila.","bad");await pokayokeFeedback("error",{title:"✕ FILA NÃO SELECIONADA",message:"Selecione a fila antes de conferir.",codigo_lido:code,instruction:"SELECIONE A FILA CORRETA E LEIA NOVAMENTE."},{context:"CONFERENCIA"});return}S.scanLock=true;S.lastScanCode=code;S.lastScanAt=now;$("#scanBtn").disabled=true;setMsg("Validando "+code+"…","");const expected=expectedSnapshot(),slow=setTimeout(()=>pokayokeFeedback("validating",{message:"Validando leitura..."},{holdMs:1200}),300);try{const x=await api({action:"scan",fila_id:S.queue.fila.id,codigo:code});clearTimeout(slow);if(x.ok&&(x.resultado==="LIBERADO"||x.resultado==="CONCLUIDA")){const exp=expected||{},loc=exp.endereco||{};await pokayokeFeedback("success",{title:x.resultado==="CONCLUIDA"?"✓ FILA CONCLUÍDA":"✓ PRODUTO CORRETO",message:x.resultado==="CONCLUIDA"?"Conferência concluída com sucesso.":(x.produto||code),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:x.produto||exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:x.sequencia||exp.sequencia,instruction:x.resultado==="CONCLUIDA"?"FILA PRONTA PARA A PRÓXIMA ETAPA.":"OK — PROSSIGA PARA O PRÓXIMO ITEM."},{context:"CONFERENCIA"});setMsg(x.resultado==="CONCLUIDA"?"Fila concluída com sucesso.":"✓ CORRETO — "+(x.produto||code),"good");if(x.state&&x.state.ok)S.queue=x.state;if(x.aguardando_complemento)setMsg("Itens liberados conferidos. Aguardando complemento do ADM.","good");await loadAll()}else throw new Error(x.motivo||"REJEITADO")}catch(er){clearTimeout(slow);const exp=expected||{},loc=exp.endereco||{},lvl=classifyPkyError(er.message);await pokayokeFeedback(lvl,{title:lvl==="warning"?"⚠ ATENÇÃO":lvl==="critical"?"⛔ OPERAÇÃO BLOQUEADA":"✕ CAIXA INCORRETA",message:reason(er.message),codigo_lido:code,codigo_esperado:exp.codigo_barra||null,produto:exp.produto?.descricao,composicao:exp.codigo_volume,cor:exp.cor?.descricao,lote:exp.lote?.codigo_lote,caixa:exp.codigo_caixa||exp.codigo_barra,endereco_esperado:loc.codigo,pedido_ref:S.queue.fila.pedido_ref,sequencia:exp.sequencia,instruction:lvl==="warning"?"CONFIRA A SEQUÊNCIA/FIFO ANTES DE PROSSEGUIR.":"NÃO RETIRAR ESTA CAIXA. PROCURE O ITEM ESPERADO NO LOCAL INDICADO."},{context:"CONFERENCIA",block:lvl==="critical"});setMsg("✕ "+reason(er.message),"bad")}finally{inp.value="";$("#scanBtn").disabled=false;S.scanLock=false;setTimeout(focus,80)}}
 async function camera(){if(location.protocol==="file:"){setMsg("A câmera exige publicação HTTPS. O leitor manual funciona neste arquivo de teste.","bad");return}if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila antes de usar a câmera.","bad");return}$("#modal").innerHTML='<div class="modalback"><div class="modal"><div class="modalH"><h3>Leitor por câmera</h3><button id="closeCam" class="btn secondary">Fechar</button></div><div id="reader" class="reader"></div><div class="msg">Aponte para o código do volume.</div></div></div>';$("#closeCam").onclick=closeCam;try{S.scanner=new Html5Qrcode("reader");S.running=true;await S.scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:280,height:150}},async txt=>{if(!S.running)return;$("#scanInput").value=txt;await closeCam();await scan()})}catch{$("#modal .msg").textContent="Não foi possível abrir a câmera. Verifique a permissão."}}
 async function closeCam(){if(S.scanner&&S.running){S.running=false;try{await S.scanner.stop()}catch{}try{await S.scanner.clear()}catch{}}S.scanner=null;$("#modal").innerHTML="";focus()}
