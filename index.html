@@ -52,6 +52,7 @@
 .cameraGuide[hidden]{display:none}
 .cameraGuide::after{content:"";position:absolute;left:0;right:0;top:50%;height:3px;background:#ff243d;box-shadow:0 0 8px #ff243d,0 0 2px #fff;transform:translateY(-50%)}
 .cameraViewport .reader:has(video){min-height:0}
+@media(max-width:720px){.cameraModal{align-self:start;margin-top:8px}.cameraModal .reader{min-height:140px}}
 </style>
 </head>
 <body>
@@ -568,18 +569,20 @@ async function releaseOrder(ref,btn,ids){
 function renderQueueSel(){const s=$("#queueSel"),cur=S.queue&&S.queue.fila&&S.queue.fila.id||"";s.innerHTML='<option value="">Selecione uma fila</option>'+S.queues.filter(q=>q.status!=="CANCELADA").map(q=>'<option value="'+q.id+'" '+(String(q.id)===String(cur)?"selected":"")+'>'+esc(q.pedido_ref||q.codigo)+' · '+esc(q.status)+' · '+(q.done||0)+'/'+(q.total||0)+'</option>').join("")}
 function renderConf(){const q=S.queue;if(!q||!q.ok){$("#qname").textContent="Nenhuma fila ativa";$("#qstat").textContent="Libere um pedido para iniciar.";$("#qprog").textContent="0/0";$("#nextName").textContent="—";$("#nextCode").textContent="—";$("#nextAddr").textContent="Endereço: —";$("#seqs").innerHTML='<div class="msg">Nenhuma fila selecionada.</div>';return}const it=q.itens||[],done=it.filter(i=>i.status==="CONFERIDO").length,next=it.find(i=>i.status==="AGUARDANDO");$("#qname").textContent=q.fila.pedido_ref||q.fila.codigo;$("#qstat").textContent=(q.fila.descricao||"")+" • "+q.fila.status;$("#qprog").textContent=done+"/"+it.length;if(next){$("#nextName").textContent=next.produto&&next.produto.descricao||next.codigo_volume||"Volume";$("#nextCode").textContent=(next.codigo_volume||"")+" • "+(next.codigo_barra||"");$("#nextAddr").textContent="Buscar em: "+(next.endereco&&next.endereco.codigo||"SEM ENDEREÇO")}else{$("#nextName").textContent=q.fila.status==="CONCLUIDA"?"CONFERÊNCIA CONCLUÍDA":(q.fila.status==="AGUARDANDO_COMPLEMENTO"?"AGUARDANDO COMPLEMENTO DO ADM":"Sem pendências");$("#nextCode").textContent=q.fila.status==="AGUARDANDO_COMPLEMENTO"?"Os itens já liberados foram conferidos. Aguarde nova liberação do ADM.":"Todos os volumes foram processados.";$("#nextAddr").textContent=""}$("#seqs").innerHTML=it.map(i=>{const cl=i.status==="CONFERIDO"?"done":(next&&next.id===i.id?"current":"");const st=i.status==="CONFERIDO"?"OK":(next&&next.id===i.id?"PRÓXIMO":"AGUARDA");return '<div class="seq '+cl+'"><div class="n">'+i.sequencia+'</div><div><b>'+esc(i.produto&&i.produto.descricao||i.codigo_volume||"Volume")+'</b><span>'+esc(i.codigo_barra||"")+' • '+esc(i.endereco&&i.endereco.codigo||"Sem endereço")+'</span></div><span class="badge">'+st+'</span></div>'}).join("");renderQueueSel()}
 async function scan(){const inp=$("#scanInput"),code=inp.value.trim();if(!code){focus();return}if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila.","bad");tone(false);flashSignal(false);return}$("#scanBtn").disabled=true;setMsg("Validando "+code+"…","");try{const x=await api({action:"scan",fila_id:S.queue.fila.id,codigo:code});if(x.ok&&(x.resultado==="LIBERADO"||x.resultado==="CONCLUIDA")){tone(true);flashSignal(true);setMsg(x.resultado==="CONCLUIDA"?"Fila concluída com sucesso.":"✓ CORRETO — "+(x.produto||code),"good");if(x.state&&x.state.ok)S.queue=x.state;if(x.aguardando_complemento)setMsg("Itens liberados conferidos. Aguardando complemento do ADM.","good");await loadAll()}else throw new Error(x.motivo||"REJEITADO")}catch(er){tone(false);flashSignal(false);setMsg("✕ "+reason(er.message),"bad")}finally{inp.value="";$("#scanBtn").disabled=false;setTimeout(focus,80)}}
-function focus(){if(S.view==="conf"){$("#scanInput").focus();$("#scanInput").select()}}
+function focus(force=false){if(cameraSession)return;if(force!==true&&window.matchMedia("(pointer: coarse)").matches)return;if(S.view==="conf"){$("#scanInput").focus();$("#scanInput").select()}}
 function renderStock(){const body=$("#tbody");if(!body)return;const q=($("#search").value||"").toLowerCase(),st=$("#stSel").value||"TODOS";const rows=S.stock.filter(r=>(st==="TODOS"||r.status===st)&&(!q||[r.produto_descricao,r.codigo_barra,r.codigo_volume,r.codigo_lote,r.endereco_codigo].some(v=>String(v||"").toLowerCase().includes(q))));body.innerHTML=rows.length?rows.map(r=>'<tr><td>'+esc(r.ordem_fifo||"—")+'</td><td>'+esc(r.produto_descricao||"")+'<br><small>'+esc(r.cor_descricao||"")+'</small></td><td>'+esc(r.codigo_barra||"")+'<br><small>'+esc(r.codigo_volume||"")+'</small></td><td>'+esc(r.codigo_lote||"")+'</td><td>'+esc(r.endereco_codigo||"—")+'</td><td><span class="badge">'+esc(r.status||"")+'</span></td></tr>').join(""):'<tr><td colspan="6">Nenhum item.</td></tr>'}
 function view(v){S.view=v;["pedidos","conf","stock","cad","cfg"].forEach(x=>$("#v-"+x).classList.add("hidden"));$("#v-"+v).classList.remove("hidden");$$("[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===v));$("#title").textContent={pedidos:"Liberação FIFO",conf:"Conferência",stock:"Estoque / FIFO",cad:"Cadastros e Etiquetas",cfg:"Configurações"}[v];if(v==="conf")setTimeout(focus,60);if(v==="stock")renderStock()}
 let cameraSession=null;
 async function camera(testOnly=false){
  testOnly=testOnly===true;
  if(cameraSession)return;
+ document.activeElement?.blur();
+ $("#scanInput").blur();
  if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){setMsg("Abra o sistema pelo link HTTPS no Chrome ou Safari para usar a câmera.","bad");return}
  if(!testOnly&&(!S.queue||!S.queue.fila)){setMsg("Selecione uma fila antes de usar a câmera.","bad");return}
  if(typeof Html5Qrcode==="undefined"){setMsg("O leitor de câmera não carregou. Verifique a internet e recarregue a página.","bad");return}
  const session={closed:false,busy:false,accepted:false,scanner:null,pending:null};cameraSession=session;
- $("#modal").innerHTML='<div class="modalback"><div class="modal" style="max-height:94dvh;overflow:auto"><div class="modalH"><h3>Leitura pelo celular</h3><button id="closeCam" class="btn secondary">Fechar</button></div><label for="cameraType">Tipo de leitura</label><select id="cameraType" class="input" style="margin:8px 0"><option value="barcode">Código de barras</option><option value="qr">QR Code</option></select><div class="cameraViewport"><div id="reader" class="reader"></div><div id="cameraGuide" class="cameraGuide" aria-hidden="true" hidden></div></div><p id="cameraHint" class="msg"></p><p id="cameraStatus" class="msg" role="status" aria-live="polite"></p><button id="retryCamera" class="btn secondary" hidden>Tentar novamente</button></div></div>';
+ $("#modal").innerHTML='<div class="modalback"><div class="modal cameraModal" style="max-height:94dvh;overflow:auto"><div class="modalH"><h3>Leitura pelo celular</h3><button id="closeCam" class="btn secondary">Fechar</button></div><label for="cameraType">Tipo de leitura</label><select id="cameraType" class="input" style="margin:8px 0"><option value="barcode">Código de barras</option><option value="qr">QR Code</option></select><p id="cameraStatus" class="msg" role="status" aria-live="polite"></p><div class="cameraViewport"><div id="reader" class="reader"></div><div id="cameraGuide" class="cameraGuide" aria-hidden="true" hidden></div></div><p id="cameraHint" class="msg"></p><button id="retryCamera" class="btn secondary" hidden>Tentar novamente</button></div></div>';
  $("#closeCam").onclick=closeCam;
  const start=async()=>{
   if(session.busy||session.closed)return;
@@ -596,8 +599,8 @@ async function camera(testOnly=false){
    const formats=mode==="qr"?[F.QR_CODE]:[F.CODE_128,F.CODE_39,F.CODE_93,F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.ITF,F.CODABAR];
    const scanner=new Html5Qrcode("reader",{formatsToSupport:formats,verbose:false});
    session.scanner=scanner;S.scanner=scanner;
-   const config={fps:12,aspectRatio:1.777778,disableFlip:false,qrbox:(w,h)=>{
-    const box=mode==="qr"?{width:Math.floor(Math.min(w,h)*.75),height:Math.floor(Math.min(w,h)*.75)}:{width:Math.floor(Math.min(w*.88,420)),height:Math.floor(Math.min(h*.36,190))};
+   const config={fps:12,disableFlip:false,qrbox:(w,h)=>{
+    const box=mode==="qr"?{width:Math.floor(Math.min(w,h)*.75),height:Math.floor(Math.min(w,h)*.75)}:{width:Math.floor(Math.min(w*.88,420)),height:Math.floor(Math.min(h*.8,Math.max(50,Math.min(h*.36,190))))};
     const guide=$("#cameraGuide");if(guide){guide.style.width=box.width+"px";guide.style.height=box.height+"px"}
     return box;
    }};
@@ -612,7 +615,7 @@ async function camera(testOnly=false){
     $("#scanInput").value=txt;
     await closeCam();await scan();
    };
-   try{await scanner.start({facingMode:{exact:"environment"}},config,onSuccess,()=>{})}
+   try{await scanner.start({facingMode:{ideal:"environment"}},config,onSuccess,()=>{})}
    catch(error){
     if(session.closed) return;
     if(/NotAllowed|Permission|denied/i.test(error?.name||String(error)))throw error;
@@ -624,7 +627,7 @@ async function camera(testOnly=false){
    if(!session.closed){$("#cameraGuide").hidden=true}
    if(!session.closed){
     const name=error?.name||String(error);
-    $("#cameraStatus").textContent=/NotAllowed|Permission|denied/i.test(name)?"Permissão negada. Autorize a câmera nas configurações deste site e tente novamente.":/NotFound|DevicesNotFound/i.test(name)?"Nenhuma câmera encontrada neste aparelho.":/NotReadable|TrackStart/i.test(name)?"Câmera ocupada. Feche outros aplicativos que usam a câmera e tente novamente.":"Não foi possível iniciar a câmera. Abra o link HTTPS diretamente no Chrome ou Safari e tente novamente.";
+    $("#cameraStatus").textContent=/NotAllowed|Permission|denied/i.test(name)?"Permissão negada. Autorize a câmera nas configurações deste site e tente novamente.":/NotFound|DevicesNotFound/i.test(name)?"Nenhuma câmera encontrada neste aparelho.":/NotReadable|TrackStart/i.test(name)?"Câmera ocupada. Feche outros aplicativos que usam a câmera e tente novamente.":"Falha ao iniciar vídeo: "+(error?.message||String(error))+". Toque em Tentar novamente.";
     $("#retryCamera").hidden=false;
    }
   }finally{session.busy=false;if(!session.closed)type.disabled=false}
@@ -646,7 +649,7 @@ async function init(){const ss=(await sb.auth.getSession()).data.session;if(!ss)
 $("#loginForm").onsubmit=async ev=>{ev.preventDefault();$("#loginBtn").disabled=true;$("#loginMsg").textContent="Entrando…";const r=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pass").value});if(r.error){$("#loginMsg").textContent=r.error.message;$("#loginMsg").className="msg bad"}else await init();$("#loginBtn").disabled=false};
 $("#logout").onclick=async()=>{await closeCam();await sb.auth.signOut();S.queue=null;init()};$("#refresh").onclick=async()=>{try{await Promise.all([loadCfg(),loadCad(),loadAll(),loadBackups()]);syncLoop()}catch(er){alert(reason(er.message))}};
 $$("[data-v]").forEach(b=>b.onclick=()=>view(b.dataset.v));$("#queueSel").onchange=async ev=>{await loadQ(ev.target.value||null);focus()};$("#scanBtn").onclick=scan;$("#scanInput").onkeydown=ev=>{if(ev.key==="Enter"){ev.preventDefault();scan()}};
-$("#focusBtn").onclick=focus;$("#camBtn").onclick=()=>camera(false);$("#testVideoBtn").onclick=()=>camera(true);$("#search").oninput=renderStock;$("#stSel").onchange=renderStock;
+$("#focusBtn").onclick=()=>focus(true);$("#camBtn").onclick=()=>camera(false);$("#testVideoBtn").onclick=()=>camera(true);$("#search").oninput=renderStock;$("#stSel").onchange=renderStock;
 ["soundMode","soundVolume","soundDuration","errorFlashes","flashDuration"].forEach(id=>$("#"+id).addEventListener("input",updateCfgLabels));
 $("#saveCfg").onclick=saveCfg;$("#testOk").onclick=async()=>{tone(true,true);flashSignal(true,true)};$("#testErr").onclick=async()=>{tone(false,true);flashSignal(false,true)};$("#createBackup").onclick=createBackup;$("#refreshBackups").onclick=loadBackups;$("#restoreBackup").onclick=restoreBackup;$("#resetDatabase").onclick=resetDatabase;
 
