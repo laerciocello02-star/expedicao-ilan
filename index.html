@@ -47,6 +47,11 @@
 @media(max-width:560px){.formGrid{grid-template-columns:1fr}.formGrid .wide{grid-column:auto}.labelPreview{grid-template-columns:1fr}.adminDataGrid{grid-template-columns:1fr}}
 @media print{body *{visibility:hidden!important}#printZone,#printZone *{visibility:visible!important}#printZone{position:absolute;left:0;top:0;width:100%;display:grid!important;grid-template-columns:repeat(2,1fr);gap:5mm;padding:4mm}.labelCard{break-inside:avoid;border:1px solid #000;border-radius:0;min-height:45mm;padding:4mm}.labelCard svg{height:18mm}.qrbox{width:22mm!important;height:22mm!important}}
 
+.cameraViewport{position:relative;overflow:hidden;border-radius:10px;background:#111}
+.cameraGuide{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:5;border:2px solid rgba(255,255,255,.85);border-radius:8px;box-sizing:border-box}
+.cameraGuide[hidden]{display:none}
+.cameraGuide::after{content:"";position:absolute;left:0;right:0;top:50%;height:3px;background:#ff243d;box-shadow:0 0 8px #ff243d,0 0 2px #fff;transform:translateY(-50%)}
+.cameraViewport .reader:has(video){min-height:0}
 </style>
 </head>
 <body>
@@ -573,7 +578,7 @@ async function camera(){
  if(!S.queue||!S.queue.fila){setMsg("Selecione uma fila antes de usar a câmera.","bad");return}
  if(typeof Html5Qrcode==="undefined"){setMsg("O leitor de câmera não carregou. Verifique a internet e recarregue a página.","bad");return}
  const session={closed:false,busy:false,accepted:false,scanner:null,pending:null};cameraSession=session;
- $("#modal").innerHTML='<div class="modalback"><div class="modal" style="max-height:94dvh;overflow:auto"><div class="modalH"><h3>Leitura pelo celular</h3><button id="closeCam" class="btn secondary">Fechar</button></div><label for="cameraType">Tipo de leitura</label><select id="cameraType" class="input" style="margin:8px 0"><option value="barcode">Código de barras</option><option value="qr">QR Code</option></select><div id="reader" class="reader"></div><p id="cameraHint" class="msg"></p><p id="cameraStatus" class="msg" role="status" aria-live="polite"></p><button id="retryCamera" class="btn secondary" hidden>Tentar novamente</button></div></div>';
+ $("#modal").innerHTML='<div class="modalback"><div class="modal" style="max-height:94dvh;overflow:auto"><div class="modalH"><h3>Leitura pelo celular</h3><button id="closeCam" class="btn secondary">Fechar</button></div><label for="cameraType">Tipo de leitura</label><select id="cameraType" class="input" style="margin:8px 0"><option value="barcode">Código de barras</option><option value="qr">QR Code</option></select><div class="cameraViewport"><div id="reader" class="reader"></div><div id="cameraGuide" class="cameraGuide" aria-hidden="true" hidden></div></div><p id="cameraHint" class="msg"></p><p id="cameraStatus" class="msg" role="status" aria-live="polite"></p><button id="retryCamera" class="btn secondary" hidden>Tentar novamente</button></div></div>';
  $("#closeCam").onclick=closeCam;
  const start=async()=>{
   if(session.busy||session.closed)return;
@@ -581,7 +586,8 @@ async function camera(){
   const type=$("#cameraType");type.disabled=true;$("#retryCamera").hidden=true;
   $("#cameraStatus").textContent="Abrindo câmera traseira…";
   const mode=type.value;
-  $("#cameraHint").textContent=mode==="barcode"?"Enquadre todas as barras na horizontal, incluindo as margens brancas. Afaste um pouco o celular até a imagem ficar nítida.":"Enquadre o QR Code inteiro na área indicada.";
+  $("#cameraGuide").hidden=true;
+  $("#cameraHint").textContent=mode==="barcode"?"Posicione a faixa vermelha atravessando todas as barras, com as margens brancas dentro da moldura. Afaste um pouco o celular até a imagem ficar nítida.":"Enquadre o QR Code inteiro na área indicada.";
   try{
    if(session.scanner){if(session.scanner.isScanning)await session.scanner.stop();session.scanner.clear()}
    if(session.closed)return;
@@ -589,14 +595,19 @@ async function camera(){
    const formats=mode==="qr"?[F.QR_CODE]:[F.CODE_128,F.CODE_39,F.CODE_93,F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.ITF,F.CODABAR];
    const scanner=new Html5Qrcode("reader",{formatsToSupport:formats,verbose:false});
    session.scanner=scanner;S.scanner=scanner;
-   await scanner.start({facingMode:"environment"},{fps:10,disableFlip:true,qrbox:(w,h)=>mode==="qr"?{width:Math.floor(Math.min(w,h)*.75),height:Math.floor(Math.min(w,h)*.75)}:{width:Math.floor(w*.92),height:Math.floor(Math.min(h*.6,w*.45))}},async txt=>{
+   await scanner.start({facingMode:"environment"},{fps:10,disableFlip:true,qrbox:(w,h)=>{
+    const box=mode==="qr"?{width:Math.floor(Math.min(w,h)*.75),height:Math.floor(Math.min(w,h)*.75)}:{width:Math.floor(w*.92),height:Math.floor(Math.min(h*.6,w*.45))};
+    const guide=$("#cameraGuide");if(guide){guide.style.width=box.width+"px";guide.style.height=box.height+"px"}
+    return box;
+   }},async txt=>{
     if(session.closed||session.accepted||!S.running)return;
     session.accepted=true;$("#scanInput").value=txt;
     await closeCam();await scan();
    },()=>{});
-   if(!session.closed){S.running=true;$("#cameraStatus").textContent="Câmera ativa. A leitura será validada automaticamente."}
+   if(!session.closed){S.running=true;$("#cameraGuide").hidden=mode!=="barcode";$("#cameraStatus").textContent="Câmera ativa. A leitura será validada automaticamente."}
   }catch(error){
    S.running=false;
+   if(!session.closed){$("#cameraGuide").hidden=true}
    if(!session.closed){
     const name=error?.name||String(error);
     $("#cameraStatus").textContent=/NotAllowed|Permission|denied/i.test(name)?"Permissão negada. Autorize a câmera nas configurações deste site e tente novamente.":/NotFound|DevicesNotFound/i.test(name)?"Nenhuma câmera encontrada neste aparelho.":/NotReadable|TrackStart/i.test(name)?"Câmera ocupada. Feche outros aplicativos que usam a câmera e tente novamente.":"Não foi possível iniciar a câmera. Abra o link HTTPS diretamente no Chrome ou Safari e tente novamente.";
